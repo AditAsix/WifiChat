@@ -1,0 +1,1811 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#075E54">
+  <title>WiFi Chat Pro</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+  <style>
+    /* [STYLE SAMA SEPERTI SEBELUMNYA - TETAP SAMA] */
+    :root {
+      --bg: #F0F2F5;
+      --header-bg: linear-gradient(135deg, #075E54 0%, #0D8A7A 40%, #0A6B5F 100%);
+      --card: #FFFFFF;
+      --text: #111111;
+      --text-secondary: #667781;
+      --bubble-sent: linear-gradient(135deg, #DCF8C6 0%, #C8F0B8 100%);
+      --bubble-recv: #FFFFFF;
+      --input-bg: #fafafa;
+      --modal-bg: #FFFFFF;
+      --toast-bg: rgba(0,0,0,0.85);
+    }
+
+    .dark-mode {
+      --bg: #0B141A;
+      --header-bg: linear-gradient(135deg, #1F2C33 0%, #2A3B44 40%, #1F2C33 100%);
+      --card: #1F2C33;
+      --text: #E9EDEF;
+      --text-secondary: #8696A0;
+      --bubble-sent: linear-gradient(135deg, #005C4B 0%, #025144 100%);
+      --bubble-recv: #1F2C33;
+      --input-bg: #2A3B44;
+      --modal-bg: #1F2C33;
+      --toast-bg: rgba(233,237,239,0.9);
+    }
+
+    .dark-mode .contact-item { border-bottom-color: #1a252b; }
+    .dark-mode .search-bar { background: #1F2C33; color: #E9EDEF; }
+    .dark-mode .input-bar { background: #1F2C33; border-top-color: #1a252b; }
+    .dark-mode .input-bar input { background: #2A3B44; color: #E9EDEF; border-color: #1a252b; }
+    .dark-mode .input-group input, .dark-mode .input-group textarea { background: #1a252b; color: #E9EDEF; border-color: #2A3B44; }
+    .dark-mode .modal-sheet { background: #1F2C33; }
+    .dark-mode .btn-outline { background: #1F2C33; }
+    .dark-mode .code-display { background: #1a252b; border-color: #2A3B44; }
+    .dark-mode .toast { background: rgba(233,237,239,0.9); color: #111; }
+    .dark-mode .msg-wrapper.received .msg-bubble { color: #E9EDEF; }
+    .dark-mode .chat-content { background: #0B141A; }
+    .dark-mode .floating-nav { background: rgba(31,44,51,0.95); box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1); }
+    .dark-mode .system-msg { background: rgba(31,44,51,0.7); }
+    .dark-mode .btn-send, .dark-mode .btn-attach { background: #2A3B44; color: #8696A0; }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg); color: var(--text);
+      height: 100vh; height: 100dvh; overflow: hidden;
+      display: flex; flex-direction: column;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; transition: background 0.3s, color 0.3s;
+    }
+
+    .header {
+      background: var(--header-bg);
+      padding: 14px 18px; padding-top: max(14px, env(safe-area-inset-top));
+      color: white; display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0; overflow: hidden; transition: 0.3s;
+    }
+
+    .header .title-area { flex: 1; }
+    .header .title { font-size: 18px; font-weight: 700; }
+    .header .subtitle { font-size: 11px; color: rgba(255,255,255,0.7); }
+
+    .btn-icon {
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      color: white; width: 36px; height: 36px; border-radius: 50%;
+      cursor: pointer; font-size: 16px; display: flex; align-items: center;
+      justify-content: center; transition: 0.2s; flex-shrink: 0; position: relative;
+    }
+    .btn-icon:active { background: rgba(255,255,255,0.25); transform: scale(0.9); }
+
+    .screen { display: none; flex: 1; flex-direction: column; overflow: hidden; background: var(--bg); }
+    .screen.active { display: flex; }
+
+    .login-bg {
+      flex: 1; background: linear-gradient(160deg, #075E54 0%, #0D8A7A 35%, #1a1a2e 100%);
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+      position: relative; overflow: hidden;
+    }
+
+    .login-bg::before {
+      content: ''; position: absolute; width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(37,211,102,0.2) 0%, transparent 70%);
+      border-radius: 50%; top: -60px; right: -80px;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .login-bg::after {
+      content: ''; position: absolute; width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+      border-radius: 50%; bottom: -40px; left: -60px;
+      animation: float 8s ease-in-out infinite reverse;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+
+    .login-card {
+      background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);
+      border-radius: 24px; padding: 28px 22px; width: 100%; max-width: 380px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2); position: relative; z-index: 1;
+    }
+
+    .login-logo {
+      width: 64px; height: 64px; background: linear-gradient(135deg, #25D366, #075E54);
+      border-radius: 20px; display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin: 0 auto 16px; box-shadow: 0 0 20px rgba(37,211,102,0.3);
+    }
+
+    .login-card h2 {
+      text-align: center; background: linear-gradient(135deg, #075E54, #25D366);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      font-size: 22px; font-weight: 700; margin-bottom: 4px;
+    }
+
+    .login-card .subtitle-text {
+      text-align: center; font-size: 12px; color: #667781; margin-bottom: 20px;
+    }
+
+    .input-group { margin-bottom: 12px; }
+    .input-group label {
+      display: block; font-size: 11px; color: var(--text-secondary);
+      margin-bottom: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    .input-group input, .input-group textarea {
+      width: 100%; padding: 13px 16px; border: 2px solid #e8e8e8;
+      border-radius: 14px; font-size: 15px; outline: none; transition: 0.3s;
+      background: var(--input-bg); color: var(--text);
+    }
+
+    .input-group input:focus, .input-group textarea:focus {
+      border-color: #25D366; box-shadow: 0 0 0 4px rgba(37,211,102,0.08);
+      background: var(--card);
+    }
+
+    .btn {
+      width: 100%; padding: 14px; border: none; border-radius: 14px;
+      font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.3s;
+    }
+
+    .btn-gradient {
+      background: linear-gradient(135deg, #25D366 0%, #075E54 100%);
+      color: white; box-shadow: 0 4px 15px rgba(37,211,102,0.4);
+    }
+    .btn-gradient:active { transform: scale(0.96); }
+
+    .btn-outline {
+      background: var(--card); color: #25D366;
+      border: 2px solid #25D366; margin-top: 8px;
+    }
+
+    .otp-box { display: flex; gap: 8px; justify-content: center; margin: 16px 0; }
+
+    .otp-box input {
+      width: 44px; height: 52px; text-align: center; font-size: 22px; font-weight: 700;
+      border: 2px solid #e0e0e0; border-radius: 12px; background: var(--input-bg);
+      outline: none; transition: 0.2s; color: var(--text);
+    }
+
+    .otp-box input:focus {
+      border-color: #25D366; box-shadow: 0 0 0 4px rgba(37,211,102,0.1);
+      background: var(--card);
+    }
+
+    .contacts-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .search-container {
+      padding: 10px 14px; background: var(--card); border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .search-bar {
+      width: 100%; padding: 11px 18px; background: var(--input-bg);
+      border: 1.5px solid transparent; border-radius: 25px; font-size: 14px;
+      outline: none; transition: 0.3s; color: var(--text);
+    }
+
+    .search-bar:focus {
+      border-color: #25D366; background: var(--card);
+      box-shadow: 0 0 0 4px rgba(37,211,102,0.05);
+    }
+
+    .contact-list {
+      flex: 1; overflow-y: auto; background: var(--card);
+      padding-bottom: 80px; -webkit-overflow-scrolling: touch;
+    }
+
+    .contact-item {
+      display: flex; align-items: center; padding: 13px 16px; cursor: pointer;
+      transition: 0.15s; border-bottom: 1px solid rgba(0,0,0,0.03);
+    }
+
+    .contact-item:active { background: rgba(0,0,0,0.05); transform: scale(0.98); }
+    .contact-item.pinned { background: rgba(37,211,102,0.05); }
+
+    .avatar {
+      width: 50px; height: 50px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 20px; flex-shrink: 0;
+    }
+
+    .contact-info { flex: 1; margin-left: 12px; }
+    .contact-name { font-size: 15px; font-weight: 600; color: var(--text); }
+    .contact-preview {
+      font-size: 12px; color: var(--text-secondary); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
+    }
+
+    .contact-actions { display: flex; gap: 4px; }
+    .btn-xs {
+      width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
+      font-size: 11px; display: flex; align-items: center; justify-content: center;
+      background: transparent; transition: 0.2s;
+    }
+    .btn-xs:active { background: rgba(0,0,0,0.1); }
+
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; color: var(--text-secondary); text-align: center; padding: 40px;
+    }
+
+    .empty-state .icon { font-size: 60px; margin-bottom: 16px; }
+
+    .chat-content {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+      background: #E6E1DA;
+      background-image:
+        radial-gradient(circle at 20% 50%, rgba(37,211,102,0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(7,94,84,0.03) 0%, transparent 50%);
+    }
+
+    .dark-mode .chat-content { background: #0B141A; background-image: none; }
+
+    .messages-container {
+      flex: 1; overflow-y: auto; padding: 14px 12px;
+      display: flex; flex-direction: column; gap: 4px; -webkit-overflow-scrolling: touch;
+    }
+
+    .msg-wrapper { display: flex; margin: 2px 0; }
+    .msg-wrapper.sent { justify-content: flex-end; }
+    .msg-wrapper.received { justify-content: flex-start; }
+
+    .msg-bubble {
+      max-width: 78%; padding: 9px 13px; border-radius: 12px;
+      font-size: 14px; line-height: 1.4; word-wrap: break-word;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      animation: msgIn 0.3s ease-out; position: relative;
+    }
+
+    @keyframes msgIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-wrapper.sent .msg-bubble {
+      background: var(--bubble-sent); border-top-right-radius: 4px; color: #111;
+    }
+
+    .msg-wrapper.received .msg-bubble {
+      background: var(--bubble-recv); border-top-left-radius: 4px;
+    }
+
+    .msg-time { font-size: 10px; color: #8696a0; text-align: right; margin-top: 3px; }
+    .msg-check { font-size: 10px; margin-left: 4px; }
+    .msg-check.read { color: #34B7F1; }
+
+    .msg-image { max-width: 250px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; }
+    .msg-audio { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .msg-audio audio { height: 36px; width: 180px; }
+    .msg-file {
+      display: flex; align-items: center; gap: 8px; padding: 8px;
+      background: rgba(0,0,0,0.05); border-radius: 8px; cursor: pointer;
+    }
+    .msg-file .file-icon { font-size: 24px; }
+    .msg-file .file-name { font-size: 12px; word-break: break-all; }
+
+    .system-msg {
+      text-align: center; font-size: 11px; color: var(--text-secondary);
+      padding: 6px 14px; background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(5px); border-radius: 12px;
+      align-self: center; margin: 6px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .input-bar {
+      display: flex; align-items: center; padding: 8px 12px;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      background: var(--card); gap: 6px; border-top: 1px solid rgba(0,0,0,0.05);
+      flex-shrink: 0;
+    }
+
+    .input-bar input {
+      flex: 1; padding: 11px 16px; border: 1.5px solid #e8e8e8;
+      border-radius: 25px; font-size: 14px; outline: none; transition: 0.3s;
+      background: var(--input-bg); color: var(--text);
+    }
+
+    .input-bar input:focus {
+      border-color: #25D366; box-shadow: 0 0 0 3px rgba(37,211,102,0.06);
+      background: var(--card);
+    }
+
+    .btn-send, .btn-attach {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      background: #f0f0f0; color: #666; font-size: 18px; cursor: pointer;
+      flex-shrink: 0; transition: 0.3s; display: flex; align-items: center; justify-content: center;
+    }
+
+    .btn-send.active {
+      background: linear-gradient(135deg, #25D366, #075E54);
+      color: white; box-shadow: 0 3px 12px rgba(37,211,102,0.3);
+    }
+
+    .btn-send:active, .btn-attach:active { transform: scale(0.9); }
+    .btn-send:disabled, .btn-attach:disabled { opacity: 0.4; }
+
+    .btn-record {
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      background: #EF4444; color: white; font-size: 16px; cursor: pointer;
+      flex-shrink: 0; display: none; align-items: center; justify-content: center;
+    }
+
+    .btn-record.recording {
+      display: flex; animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+      50% { box-shadow: 0 0 0 12px rgba(239,68,68,0); }
+    }
+
+    .floating-nav {
+      position: fixed;
+      bottom: 20px; bottom: max(20px, calc(env(safe-area-inset-bottom) + 10px));
+      left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px); border-radius: 30px;
+      padding: 5px 6px; display: flex; gap: 3px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.6);
+      z-index: 50;
+    }
+
+    .nav-item {
+      padding: 10px 16px; border-radius: 24px; border: none;
+      background: transparent; cursor: pointer; font-size: 13px; font-weight: 500;
+      color: var(--text-secondary); transition: 0.3s; white-space: nowrap;
+      display: flex; align-items: center; gap: 5px;
+    }
+
+    .nav-item.active {
+      background: linear-gradient(135deg, #25D366, #075E54);
+      color: white; box-shadow: 0 4px 14px rgba(37,211,102,0.4); font-weight: 600;
+    }
+
+    .nav-item:active { transform: scale(0.94); }
+
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(4px);
+      z-index: 200; justify-content: center; align-items: flex-end;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal-sheet {
+      background: var(--modal-bg); border-radius: 24px 24px 0 0;
+      padding: 20px 20px max(20px, env(safe-area-inset-bottom)) 20px;
+      width: 100%; max-height: 85vh; overflow-y: auto;
+      animation: slideUp 0.3s ease-out;
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.3);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .modal-handle {
+      width: 36px; height: 5px; background: #ddd; border-radius: 3px; margin: 0 auto 16px;
+    }
+
+    .modal-sheet h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+
+    .code-display {
+      background: var(--input-bg); padding: 12px; border-radius: 12px;
+      text-align: center; font-family: 'SF Mono', 'Courier New', monospace;
+      font-size: 13px; font-weight: 600; letter-spacing: 1px;
+      color: #075E54; margin: 8px 0; border: 2px dashed #ddd;
+      word-break: break-all; max-height: 100px; overflow-y: auto;
+    }
+
+    .btn-copy {
+      background: linear-gradient(135deg, #25D366, #075E54);
+      color: white; border: none; padding: 10px 20px; border-radius: 20px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s;
+      box-shadow: 0 3px 12px rgba(37,211,102,0.3);
+    }
+
+    .btn-copy:active { transform: scale(0.95); }
+
+    #qrContainer canvas, #qrContainer img { border-radius: 12px; }
+
+    .scanner-container {
+      position: relative; width: 100%; max-width: 300px; margin: 12px auto;
+      border-radius: 16px; overflow: hidden; border: 3px solid #25D366;
+      box-shadow: 0 0 0 4px rgba(37,211,102,0.2);
+    }
+
+    .scanner-container video {
+      width: 100%; border-radius: 12px; display: block;
+    }
+
+    .scanner-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      border: 2px solid rgba(37,211,102,0.6); border-radius: 12px;
+      pointer-events: none;
+    }
+
+    .scanner-line {
+      position: absolute; left: 10%; right: 10%; height: 2px;
+      background: #25D366; box-shadow: 0 0 8px #25D366;
+      animation: scanLine 2s ease-in-out infinite;
+    }
+
+    @keyframes scanLine {
+      0%, 100% { top: 20%; }
+      50% { top: 80%; }
+    }
+
+    .scanner-actions {
+      display: flex; gap: 8px; margin-top: 12px; justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    textarea.sdp-input {
+      width: 100%; height: 100px; border: 2px solid #e0e0e0;
+      border-radius: 12px; padding: 10px; font-size: 11px;
+      font-family: monospace; resize: vertical; outline: none;
+      background: var(--input-bg); color: var(--text);
+    }
+
+    textarea.sdp-input:focus { border-color: #25D366; }
+
+    .toast-container {
+      position: fixed;
+      top: 60px; top: max(60px, calc(env(safe-area-inset-top) + 20px));
+      left: 50%; transform: translateX(-50%);
+      z-index: 300; display: flex; flex-direction: column;
+      gap: 8px; align-items: center; pointer-events: none;
+    }
+
+    .toast {
+      background: var(--toast-bg); backdrop-filter: blur(10px);
+      color: white; padding: 10px 20px; border-radius: 20px;
+      font-size: 13px; font-weight: 500;
+      animation: toastIn 0.3s ease-out, toastOut 0.3s 1.8s ease-in forwards;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1); white-space: nowrap;
+    }
+
+    .dark-mode .toast { color: #111; }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-20px); }
+    }
+
+    .image-preview {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.95); z-index: 300;
+      display: none; align-items: center; justify-content: center;
+    }
+
+    .image-preview.active { display: flex; }
+
+    .image-preview img { max-width: 95%; max-height: 80vh; border-radius: 8px; }
+
+    .image-preview .close-btn {
+      position: absolute; top: 40px; right: 20px;
+      color: white; font-size: 28px; cursor: pointer; z-index: 301;
+    }
+
+    .tab-switcher {
+      display: flex; gap: 4px; background: #f0f0f0; border-radius: 12px;
+      padding: 4px; margin-bottom: 16px;
+    }
+
+    .dark-mode .tab-switcher { background: #1a252b; }
+
+    .tab-btn {
+      flex: 1; padding: 10px; border: none; border-radius: 10px;
+      cursor: pointer; font-size: 13px; font-weight: 500;
+      background: transparent; color: var(--text-secondary); transition: 0.2s;
+    }
+
+    .tab-btn.active {
+      background: #25D366; color: white; box-shadow: 0 2px 8px rgba(37,211,102,0.3);
+    }
+
+    .connection-status {
+      padding: 8px 12px; border-radius: 8px; text-align: center;
+      margin: 8px 0; font-size: 13px; font-weight: 500;
+    }
+
+    .connection-status.connected {
+      background: #10B981; color: white;
+    }
+
+    .connection-status.disconnected {
+      background: #EF4444; color: white;
+    }
+
+    .connection-status.waiting {
+      background: #F59E0B; color: white;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ==================== LOGIN SCREEN ==================== -->
+<div class="screen active" id="loginScreen">
+  <div class="login-bg">
+    <div class="login-card">
+      <div class="login-logo">💬</div>
+      <h2>WiFi Chat Pro</h2>
+      <p class="subtitle-text">Chatting offline • Gambar • Suara • File • Enkripsi</p>
+
+      <div class="input-group">
+        <label>📱 Nomor Telepon</label>
+        <input type="tel" id="phoneInput" placeholder="Contoh: 08123456789" autocomplete="tel" inputmode="numeric">
+      </div>
+
+      <button class="btn btn-gradient" onclick="sendOTP()">🔑 Masuk / Daftar</button>
+
+      <div id="otpSection" style="display:none;">
+        <p style="text-align:center;margin:14px 0 4px;font-size:12px;color:#667781;">
+          Masukkan kode verifikasi
+        </p>
+        <p style="text-align:center;font-size:11px;color:#999;">
+          (Demo: <b id="otpCode" style="color:#25D366;font-size:16px;"></b>)
+        </p>
+        <div class="otp-box">
+          <input type="text" maxlength="1" id="otp1" oninput="otpNext(this)" inputmode="numeric" pattern="[0-9]">
+          <input type="text" maxlength="1" id="otp2" oninput="otpNext(this)" inputmode="numeric" pattern="[0-9]">
+          <input type="text" maxlength="1" id="otp3" oninput="otpNext(this)" inputmode="numeric" pattern="[0-9]">
+          <input type="text" maxlength="1" id="otp4" oninput="otpNext(this)" inputmode="numeric" pattern="[0-9]">
+          <input type="text" maxlength="1" id="otp5" oninput="otpNext(this)" inputmode="numeric" pattern="[0-9]">
+          <input type="text" maxlength="1" id="otp6" oninput="otpNext(this)" inputmode="numeric" pattern="[0-9]">
+        </div>
+        <button class="btn btn-gradient" onclick="verifyOTP()">✅ Verifikasi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONTACTS SCREEN ==================== -->
+<div class="screen" id="contactsScreen">
+  <div class="header">
+    <div class="title-area">
+      <div class="title">💬 WiFi Chat Pro</div>
+      <div class="subtitle" id="myPhoneDisplay"></div>
+    </div>
+    <button class="btn-icon" onclick="toggleDarkMode()" title="Dark Mode">🌓</button>
+    <button class="btn-icon" onclick="logout()" title="Keluar">🚪</button>
+  </div>
+
+  <div class="contacts-content">
+    <div class="search-container">
+      <input class="search-bar" id="searchBar" placeholder="🔍 Cari kontak..." oninput="filterContacts()">
+    </div>
+
+    <div class="contact-list" id="contactList"></div>
+  </div>
+
+  <div class="floating-nav">
+    <button class="nav-item active" onclick="showTab('chats')">💬 Chat</button>
+    <button class="nav-item" onclick="showTab('add')">➕ Tambah</button>
+    <button class="nav-item" onclick="showTab('connect')">🔗 Koneksi</button>
+  </div>
+</div>
+
+<!-- ==================== CHAT SCREEN ==================== -->
+<div class="screen" id="chatScreen">
+  <div class="header">
+    <button class="btn-icon" onclick="goBackToContacts()">←</button>
+    <div class="avatar" id="chatAvatarSmall" style="width:38px;height:38px;font-size:16px;">?</div>
+    <div class="title-area">
+      <div class="title" id="chatName">Nama</div>
+      <div class="subtitle" id="chatStatus">Offline</div>
+    </div>
+    <button class="btn-icon" onclick="showContactInfo()" title="Info">ℹ️</button>
+    <button class="btn-icon" onclick="showChatMenu()" title="Menu">⋮</button>
+  </div>
+
+  <div class="chat-content">
+    <div class="messages-container" id="messageList"></div>
+
+    <div class="input-bar">
+      <button class="btn-attach" id="btnAttach" onclick="showAttachmentMenu()">📎</button>
+      <input type="text" id="messageInput" placeholder="Ketik pesan..." onkeydown="if(event.key==='Enter')sendMsg()" oninput="toggleSendButton()" autocomplete="off">
+      <button class="btn-record" id="btnRecord" onmousedown="startRecording()" onmouseup="stopRecording()" ontouchstart="startRecording()" ontouchend="stopRecording()">🎤</button>
+      <button class="btn-send" id="sendBtn" onclick="sendMsg()" disabled>▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL TAMBAH KONTAK ==================== -->
+<div class="modal-overlay" id="addContactModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3>➕ Tambah Kontak Baru</h3>
+    <div class="input-group"><label>👤 Nama</label><input type="text" id="newContactName" placeholder="Nama kontak"></div>
+    <div class="input-group"><label>📱 Nomor HP</label><input type="tel" id="newContactPhone" placeholder="08123456789" inputmode="numeric"></div>
+    <button class="btn btn-gradient" onclick="addContact()" style="margin-top:12px;">💾 Simpan</button>
+    <button class="btn btn-outline" onclick="closeModal('addContactModal')">Batal</button>
+  </div>
+</div>
+
+<!-- ==================== MODAL KONEKSI ==================== -->
+<div class="modal-overlay" id="connectModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3>🔗 Hubungkan Perangkat</h3>
+    
+    <div id="connStatus" class="connection-status waiting">⏳ Menunggu koneksi...</div>
+
+    <div class="tab-switcher">
+      <button class="tab-btn active" onclick="switchConnectTab('mycode')">📤 Kode Saya</button>
+      <button class="tab-btn" onclick="switchConnectTab('scan')">📷 Scan QR</button>
+      <button class="tab-btn" onclick="switchConnectTab('paste')">📋 Paste</button>
+    </div>
+
+    <!-- Tab 1: My Code -->
+    <div id="tabMyCode">
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">📱 Biarkan teman <b>scan QR ini</b> atau copy kode:</p>
+      <div id="qrContainer" style="display:flex;justify-content:center;margin:12px 0;"></div>
+      <div class="code-display" id="mySDPBox">⏳ Membuat kode...</div>
+      <div style="text-align:center;margin:8px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn-copy" onclick="copySDP()">📋 Salin Kode</button>
+        <button class="btn-copy" onclick="resetConnection()" style="background:#EF4444;box-shadow:0 3px 12px rgba(239,68,68,0.3);">🔄 Reset</button>
+        <button class="btn-copy" onclick="sendSignal()" style="background:#8B5CF6;box-shadow:0 3px 12px rgba(139,92,246,0.3);">📡 Kirim Sinyal</button>
+      </div>
+    </div>
+
+    <!-- Tab 2: Scan QR -->
+    <div id="tabScan" style="display:none;">
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">📷 Arahkan kamera ke QR code teman:</p>
+      <div class="scanner-container">
+        <video id="scannerVideo" autoplay playsinline></video>
+        <div class="scanner-overlay"></div>
+        <div class="scanner-line"></div>
+      </div>
+      <div class="scanner-actions">
+        <button class="btn-copy" onclick="startScanner()">▶ Mulai Scan</button>
+        <button class="btn-copy" onclick="stopScanner()" style="background:#EF4444;box-shadow:0 3px 12px rgba(239,68,68,0.3);">⏹ Stop</button>
+        <button class="btn-copy" onclick="scanFromImage()">🖼️ Dari Gambar</button>
+      </div>
+      <input type="file" id="qrImageInput" accept="image/*" style="display:none" onchange="handleQRImage(event)">
+      <p style="text-align:center;font-size:11px;color:var(--text-secondary);margin-top:8px;" id="scanStatus">Tekan "Mulai Scan" untuk memulai</p>
+    </div>
+
+    <!-- Tab 3: Paste Manual -->
+    <div id="tabPaste" style="display:none;">
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">📥 <b>Tempel kode</b> dari teman di sini:</p>
+      <textarea class="sdp-input" id="peerSDPInput" placeholder="Tempel kode dari teman di sini..."></textarea>
+      <button class="btn btn-gradient" onclick="connectWithSDP()" style="margin-top:8px;">🔗 Hubungkan</button>
+    </div>
+
+    <button class="btn btn-outline" onclick="closeModal('connectModal'); stopScanner();">Tutup</button>
+  </div>
+</div>
+
+<!-- ==================== MODAL LAMPIRAN ==================== -->
+<div class="modal-overlay" id="attachmentModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3>📎 Kirim Media</h3>
+    <button class="btn btn-gradient" onclick="sendImage()" style="margin-bottom:8px;">🖼️ Kirim Gambar</button>
+    <button class="btn btn-gradient" onclick="sendFile()" style="margin-bottom:8px;">📄 Kirim File</button>
+    <button class="btn btn-outline" onclick="closeModal('attachmentModal')">Batal</button>
+  </div>
+</div>
+
+<!-- ==================== MODAL INFO KONTAK ==================== -->
+<div class="modal-overlay" id="contactInfoModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;">
+      <div class="avatar" id="infoAvatar" style="width:80px;height:80px;font-size:32px;margin:0 auto 12px;">?</div>
+      <h3 id="infoName">Nama</h3>
+      <p style="color:var(--text-secondary);" id="infoPhone">Nomor</p>
+      <p style="color:var(--text-secondary);margin-top:8px;" id="infoStatus">Status koneksi</p>
+    </div>
+    <button class="btn btn-outline" onclick="exportChat()" style="margin-top:16px;">💾 Ekspor Chat</button>
+    <button class="btn btn-outline" onclick="closeModal('contactInfoModal')">Tutup</button>
+  </div>
+</div>
+
+<!-- ==================== MODAL MENU CHAT ==================== -->
+<div class="modal-overlay" id="chatMenuModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h3>⚙️ Pengaturan Chat</h3>
+    <button class="btn btn-outline" onclick="pinChat()" style="margin-bottom:8px;" id="pinBtn">📌 Pin Chat</button>
+    <button class="btn btn-outline" onclick="muteChat()" style="margin-bottom:8px;" id="muteBtn">🔇 Mute Chat</button>
+    <button class="btn btn-outline" onclick="exportChat()" style="margin-bottom:8px;">💾 Ekspor Chat</button>
+    <button class="btn btn-outline" onclick="clearChat()" style="color:#EF4444;border-color:#EF4444;">🗑️ Hapus Chat</button>
+    <button class="btn btn-outline" onclick="closeModal('chatMenuModal')">Tutup</button>
+  </div>
+</div>
+
+<!-- Hidden inputs -->
+<input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageSend(event)">
+<input type="file" id="fileInput" accept="*/*" style="display:none" onchange="handleFileSend(event)">
+
+<div class="image-preview" id="imagePreview" onclick="this.classList.remove('active')">
+  <span class="close-btn">✕</span>
+  <img id="previewImage" src="" alt="Preview">
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ==================== DATABASE ====================
+const DB = {
+  get(k, d = null) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
+  del(k) { localStorage.removeItem(k); }
+};
+
+// ==================== STATE ====================
+let myPhone = DB.get('myPhone', '');
+let myName = '';
+let contacts = DB.get('contacts', []);
+let messages = DB.get('messages', {});
+let pinnedChats = DB.get('pinnedChats', []);
+let mutedChats = DB.get('mutedChats', []);
+let currentChat = null;
+let generatedOTP = '';
+let isDarkMode = DB.get('darkMode', false);
+
+// WebRTC
+let peerConnection = null;
+let dataChannel = null;
+let isConnected = false;
+let isInitiator = false;
+let pendingCandidates = [];
+
+// Scanner
+let scannerStream = null;
+let scannerInterval = null;
+
+// Recording
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+
+const AVATAR_COLORS = ['#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6','#EC4899','#06B6D4','#84CC16'];
+const RTC_CONFIG = { 
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' }
+  ],
+  iceCandidatePoolSize: 10
+};
+
+// ==================== ENCRYPTION ====================
+function encrypt(text) { try { return btoa(unescape(encodeURIComponent(text))); } catch(e) { return text; } }
+function decrypt(text) { try { return decodeURIComponent(escape(atob(text))); } catch(e) { return text; } }
+
+// ==================== INIT ====================
+(function init() {
+  if (isDarkMode) document.body.classList.add('dark-mode');
+  if (myPhone) {
+    myName = DB.get('myName', 'User-' + myPhone.slice(-4));
+    showScreen('contactsScreen');
+    document.getElementById('myPhoneDisplay').textContent = '📱 ' + myPhone;
+    renderContacts();
+  } else {
+    showScreen('loginScreen');
+  }
+})();
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ==================== DARK MODE ====================
+function toggleDarkMode() {
+  isDarkMode = !isDarkMode;
+  document.body.classList.toggle('dark-mode', isDarkMode);
+  DB.set('darkMode', isDarkMode);
+  toast(isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode');
+}
+
+// ==================== LOGIN ====================
+function sendOTP() {
+  const phone = document.getElementById('phoneInput').value.trim().replace(/[^0-9]/g, '');
+  if (phone.length < 10) { toast('⚠️ Masukkan nomor yang valid'); return; }
+  generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
+  document.getElementById('otpCode').textContent = generatedOTP;
+  document.getElementById('otpSection').style.display = 'block';
+  document.getElementById('otp1').focus();
+  toast('📩 Kode: ' + generatedOTP);
+}
+
+function otpNext(el) { if (el.value && el.nextElementSibling) el.nextElementSibling.focus(); }
+
+function verifyOTP() {
+  let entered = '';
+  for (let i = 1; i <= 6; i++) entered += document.getElementById('otp' + i).value;
+  if (entered === generatedOTP) {
+    myPhone = document.getElementById('phoneInput').value.trim().replace(/[^0-9]/g, '');
+    myName = 'User-' + myPhone.slice(-4);
+    DB.set('myPhone', myPhone); DB.set('myName', myName);
+    toast('✅ Selamat datang!');
+    showScreen('contactsScreen');
+    document.getElementById('myPhoneDisplay').textContent = '📱 ' + myPhone;
+    renderContacts();
+  } else { toast('❌ Kode salah!'); }
+}
+
+function logout() {
+  if (confirm('Keluar dari akun?')) {
+    DB.del('myPhone'); DB.del('myName'); myPhone = '';
+    showScreen('loginScreen');
+    document.getElementById('otpSection').style.display = 'none';
+    document.getElementById('phoneInput').value = '';
+    resetConnection();
+  }
+}
+
+// ==================== KONTAK ====================
+function renderContacts(filter = '') {
+  const list = document.getElementById('contactList');
+  const f = filter.toLowerCase();
+  let filtered = contacts.filter(c => c.name.toLowerCase().includes(f) || c.phone.includes(f));
+  filtered.sort((a, b) => {
+    const aPin = pinnedChats.includes(a.phone) ? -1 : 1;
+    const bPin = pinnedChats.includes(b.phone) ? -1 : 1;
+    return aPin - bPin;
+  });
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div style="font-weight:600;color:var(--text-secondary);">Belum ada kontak</div></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map((c, i) => {
+    const initial = c.name.charAt(0).toUpperCase();
+    const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
+    const chatMsgs = messages[c.phone] || [];
+    const lastMsg = chatMsgs.length > 0 ? chatMsgs[chatMsgs.length-1].text.slice(0, 35) : 'Ketuk untuk chat';
+    const isPinned = pinnedChats.includes(c.phone);
+    const isMuted = mutedChats.includes(c.phone);
+
+    return `
+      <div class="contact-item ${isPinned ? 'pinned' : ''}" onclick="openChat('${esc(c.phone)}', '${esc(c.name)}')">
+        <div class="avatar" style="background:${color}">${initial}</div>
+        <div class="contact-info">
+          <div class="contact-name">${c.name} ${isMuted ? '🔇' : ''}</div>
+          <div class="contact-preview">${lastMsg}</div>
+        </div>
+        <button class="btn-xs" onclick="event.stopPropagation();deleteContact('${esc(c.phone)}')">🗑️</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function esc(s) { return s.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+function filterContacts() { renderContacts(document.getElementById('searchBar').value); }
+
+function addContact() {
+  const name = document.getElementById('newContactName').value.trim();
+  const phone = document.getElementById('newContactPhone').value.trim().replace(/[^0-9]/g, '');
+  if (!name || !phone) { toast('⚠️ Isi semua field'); return; }
+  if (contacts.find(c => c.phone === phone)) { toast('⚠️ Kontak sudah ada'); return; }
+  if (phone === myPhone) { toast('⚠️ Tidak bisa tambah diri sendiri'); return; }
+  contacts.push({ name, phone });
+  DB.set('contacts', contacts);
+  closeModal('addContactModal');
+  renderContacts();
+  toast('✅ Kontak ditambahkan');
+}
+
+function deleteContact(phone) {
+  if (!confirm('Hapus kontak ini?')) return;
+  contacts = contacts.filter(c => c.phone !== phone);
+  pinnedChats = pinnedChats.filter(p => p !== phone);
+  mutedChats = mutedChats.filter(m => m !== phone);
+  DB.set('contacts', contacts); DB.set('pinnedChats', pinnedChats); DB.set('mutedChats', mutedChats);
+  renderContacts();
+  toast('🗑️ Kontak dihapus');
+}
+
+// ==================== TAB NAVIGATION ====================
+function showTab(tab) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  if (tab === 'chats') {
+    document.querySelector('.nav-item:nth-child(1)').classList.add('active');
+    renderContacts();
+  } else if (tab === 'add') {
+    document.querySelector('.nav-item:nth-child(2)').classList.add('active');
+    document.getElementById('newContactName').value = '';
+    document.getElementById('newContactPhone').value = '';
+    document.getElementById('addContactModal').classList.add('active');
+  } else if (tab === 'connect') {
+    document.querySelector('.nav-item:nth-child(3)').classList.add('active');
+    document.getElementById('connectModal').classList.add('active');
+    switchConnectTab('mycode');
+    if (!peerConnection) createConnection();
+  }
+}
+
+// ==================== CONNECT TAB SWITCHER ====================
+function switchConnectTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tabMyCode').style.display = 'none';
+  document.getElementById('tabScan').style.display = 'none';
+  document.getElementById('tabPaste').style.display = 'none';
+
+  if (tab === 'mycode') {
+    document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+    document.getElementById('tabMyCode').style.display = 'block';
+    stopScanner();
+    if (peerConnection && !peerConnection.localDescription) {
+      createConnection();
+    }
+  } else if (tab === 'scan') {
+    document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
+    document.getElementById('tabScan').style.display = 'block';
+  } else if (tab === 'paste') {
+    document.querySelector('.tab-btn:nth-child(3)').classList.add('active');
+    document.getElementById('tabPaste').style.display = 'block';
+    stopScanner();
+  }
+}
+
+// ==================== WEBRTC CONNECTION ====================
+function createConnection() {
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+    dataChannel = null;
+    isConnected = false;
+  }
+
+  peerConnection = new RTCPeerConnection(RTC_CONFIG);
+  isInitiator = true;
+  pendingCandidates = [];
+
+  // Setup data channel
+  dataChannel = peerConnection.createDataChannel('chat');
+  setupDataChannel();
+
+  // ICE candidate handling
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate) {
+      // Kirim candidate ke peer melalui signaling (disimpan di SDP)
+      updateMySDP();
+    } else {
+      // ICE gathering complete
+      updateMySDP();
+    }
+  };
+
+  peerConnection.oniceconnectionstatechange = () => {
+    const state = peerConnection.iceConnectionState;
+    console.log('ICE State:', state);
+    updateConnectionStatus(state);
+  };
+
+  peerConnection.onconnectionstatechange = () => {
+    const state = peerConnection.connectionState;
+    console.log('Connection State:', state);
+    
+    if (state === 'connected') {
+      isConnected = true;
+      updateChatStatus();
+      toast('🟢 Terhubung!');
+      updateConnectionStatus('connected');
+    } else if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+      isConnected = false;
+      updateChatStatus();
+      toast('🔴 Terputus');
+      updateConnectionStatus('disconnected');
+    }
+  };
+
+  peerConnection.ondatachannel = (event) => {
+    dataChannel = event.channel;
+    setupDataChannel();
+  };
+
+  // Create offer
+  peerConnection.createOffer()
+    .then(offer => peerConnection.setLocalDescription(offer))
+    .then(() => {
+      updateMySDP();
+      toast('📤 Koneksi siap!');
+    })
+    .catch(err => {
+      console.error('Create offer error:', err);
+      toast('❌ Gagal membuat koneksi: ' + err.message);
+    });
+}
+
+function setupDataChannel() {
+  if (!dataChannel) return;
+  
+  dataChannel.onopen = () => {
+    isConnected = true;
+    updateChatStatus();
+    toast('🟢 Data channel terbuka!');
+    updateConnectionStatus('connected');
+  };
+  
+  dataChannel.onclose = () => {
+    isConnected = false;
+    updateChatStatus();
+    toast('🔴 Data channel tertutup');
+    updateConnectionStatus('disconnected');
+  };
+  
+  dataChannel.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'chunk') {
+        handleChunk(data);
+        return;
+      }
+      if (data.type === 'read') {
+        Object.keys(messages).forEach(phone => {
+          messages[phone].forEach(m => { if (!m.fromMe) m.read = true; });
+        });
+        DB.set('messages', messages);
+        if (currentChat) renderMessages();
+        return;
+      }
+      processIncomingMessage(event.data);
+    } catch(e) {
+      try {
+        const decrypted = decrypt(event.data);
+        processIncomingMessage(decrypted);
+      } catch(e2) {
+        console.log('Raw message:', event.data);
+      }
+    }
+  };
+}
+
+function updateMySDP() {
+  if (peerConnection && peerConnection.localDescription) {
+    const sdpObj = {
+      type: peerConnection.localDescription.type,
+      sdp: peerConnection.localDescription.sdp
+    };
+    // Tambahkan candidates
+    const compressed = btoa(JSON.stringify(sdpObj));
+    const box = document.getElementById('mySDPBox');
+    if (box) {
+      box.textContent = compressed;
+    }
+    generateQR(compressed);
+  }
+}
+
+function generateQR(data) {
+  const container = document.getElementById('qrContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  try {
+    if (typeof QRCode !== 'undefined') {
+      new QRCode(container, { 
+        text: data, 
+        width: 200, 
+        height: 200, 
+        colorDark: '#075E54', 
+        colorLight: '#ffffff', 
+        correctLevel: QRCode.CorrectLevel.L 
+      });
+    }
+  } catch(e) {
+    container.innerHTML = '<p style="color:red;">Gagal generate QR</p>';
+    console.error(e);
+  }
+}
+
+function copySDP() {
+  const compressed = document.getElementById('mySDPBox')?.textContent;
+  if (compressed && compressed !== '⏳ Membuat kode...' && compressed !== 'Menunggu...') {
+    navigator.clipboard?.writeText(compressed)
+      .then(() => toast('📋 Kode disalin!'))
+      .catch(() => {
+        // Fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = compressed;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        toast('📋 Kode disalin!');
+      });
+  } else {
+    toast('⏳ Tunggu kode siap...');
+  }
+}
+
+function connectWithSDP() {
+  const peerSDPCompressed = document.getElementById('peerSDPInput').value.trim();
+  if (!peerSDPCompressed) {
+    toast('⚠️ Tempel kode dari teman');
+    return;
+  }
+
+  try {
+    const peerSDPJson = atob(peerSDPCompressed);
+    const peerSDP = JSON.parse(peerSDPJson);
+    
+    if (!peerSDP.type || !peerSDP.sdp) {
+      toast('❌ Format SDP tidak valid');
+      return;
+    }
+
+    // Clean up existing connection
+    if (peerConnection) {
+      peerConnection.close();
+      peerConnection = null;
+      dataChannel = null;
+      isConnected = false;
+    }
+
+    // Create new peer connection
+    peerConnection = new RTCPeerConnection(RTC_CONFIG);
+    isInitiator = false;
+    pendingCandidates = [];
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        updateMySDP();
+      } else {
+        updateMySDP();
+      }
+    };
+
+    peerConnection.oniceconnectionstatechange = () => {
+      const state = peerConnection.iceConnectionState;
+      console.log('ICE State:', state);
+      updateConnectionStatus(state);
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+      const state = peerConnection.connectionState;
+      console.log('Connection State:', state);
+      
+      if (state === 'connected') {
+        isConnected = true;
+        updateChatStatus();
+        toast('🟢 Terhubung!');
+        updateConnectionStatus('connected');
+      } else if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+        isConnected = false;
+        updateChatStatus();
+        toast('🔴 Terputus');
+        updateConnectionStatus('disconnected');
+      }
+    };
+
+    peerConnection.ondatachannel = (event) => {
+      dataChannel = event.channel;
+      setupDataChannel();
+    };
+
+    // Set remote description
+    peerConnection.setRemoteDescription(new RTCSessionDescription(peerSDP))
+      .then(() => {
+        toast('📥 SDP diterima, membuat jawaban...');
+        
+        // Create answer if this is an offer
+        if (peerSDP.type === 'offer') {
+          return peerConnection.createAnswer()
+            .then(answer => peerConnection.setLocalDescription(answer))
+            .then(() => {
+              updateMySDP();
+              toast('📤 Jawaban siap! Kirim balik ke teman.');
+            });
+        } else {
+          toast('📥 Menunggu koneksi...');
+        }
+      })
+      .catch(err => {
+        console.error('Set remote description error:', err);
+        toast('❌ Gagal terhubung: ' + err.message);
+      });
+
+  } catch(e) {
+    console.error('Connect error:', e);
+    toast('❌ Kode rusak atau tidak valid');
+  }
+}
+
+function sendSignal() {
+  if (dataChannel && dataChannel.readyState === 'open') {
+    dataChannel.send(JSON.stringify({ 
+      type: 'signal', 
+      message: 'Ping from ' + myPhone,
+      timestamp: Date.now()
+    }));
+    toast('📡 Sinyal terkirim!');
+  } else {
+    toast('⚠️ Belum terhubung');
+  }
+}
+
+function resetConnection() {
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+    dataChannel = null;
+    isConnected = false;
+  }
+  document.getElementById('mySDPBox').textContent = '⏳ Membuat kode...';
+  document.getElementById('qrContainer').innerHTML = '';
+  isInitiator = false;
+  pendingCandidates = [];
+  updateConnectionStatus('waiting');
+  toast('🔄 Koneksi direset');
+  
+  // Create new connection after reset
+  setTimeout(() => createConnection(), 500);
+}
+
+function updateConnectionStatus(state) {
+  const el = document.getElementById('connStatus');
+  if (!el) return;
+  
+  let statusText = '';
+  let className = '';
+  
+  switch(state) {
+    case 'connected':
+    case 'completed':
+      statusText = '🟢 Terhubung';
+      className = 'connected';
+      break;
+    case 'disconnected':
+    case 'failed':
+    case 'closed':
+      statusText = '🔴 Terputus';
+      className = 'disconnected';
+      break;
+    case 'checking':
+      statusText = '🔄 Memeriksa koneksi...';
+      className = 'waiting';
+      break;
+    case 'new':
+    case 'waiting':
+    default:
+      statusText = '⏳ Menunggu koneksi...';
+      className = 'waiting';
+      break;
+  }
+  
+  el.textContent = statusText;
+  el.className = 'connection-status ' + className;
+}
+
+function updateChatStatus() {
+  const el = document.getElementById('chatStatus');
+  const btn = document.getElementById('sendBtn');
+  const recordBtn = document.getElementById('btnRecord');
+  
+  if (isConnected) {
+    if (el) el.textContent = '🟢 Online • WiFi Direct';
+    if (btn) { btn.disabled = false; btn.classList.add('active'); }
+    if (recordBtn) recordBtn.style.display = 'flex';
+  } else {
+    if (el) el.textContent = '⚪ Menunggu koneksi...';
+    if (btn) { btn.disabled = true; btn.classList.remove('active'); }
+    if (recordBtn) recordBtn.style.display = 'none';
+  }
+}
+
+// ==================== QR SCANNER ====================
+async function startScanner() {
+  const video = document.getElementById('scannerVideo');
+  const statusEl = document.getElementById('scanStatus');
+
+  try {
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+    });
+    video.srcObject = scannerStream;
+    video.play();
+    statusEl.textContent = '🔍 Mencari QR code...';
+
+    scannerInterval = setInterval(() => {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert'
+        });
+
+        if (code) {
+          stopScanner();
+          statusEl.textContent = '✅ QR Code terdeteksi!';
+          toast('✅ QR Code berhasil discan!');
+          document.getElementById('peerSDPInput').value = code.data;
+          // Switch to paste tab
+          switchConnectTab('paste');
+          // Auto connect
+          setTimeout(() => connectWithSDP(), 500);
+        }
+      }
+    }, 500);
+
+  } catch (e) {
+    console.error('Scanner error:', e);
+    statusEl.textContent = '❌ Tidak bisa akses kamera';
+    toast('❌ Izin kamera diperlukan');
+  }
+}
+
+function stopScanner() {
+  if (scannerInterval) { clearInterval(scannerInterval); scannerInterval = null; }
+  if (scannerStream) {
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
+  }
+  const video = document.getElementById('scannerVideo');
+  if (video) {
+    video.srcObject = null;
+    video.pause();
+  }
+  document.getElementById('scanStatus').textContent = '⏹ Scanner dihentikan';
+}
+
+function scanFromImage() {
+  document.getElementById('qrImageInput').click();
+}
+
+function handleQRImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+      if (code) {
+        toast('✅ QR Code dari gambar terdeteksi!');
+        document.getElementById('peerSDPInput').value = code.data;
+        switchConnectTab('paste');
+        setTimeout(() => connectWithSDP(), 500);
+      } else {
+        toast('❌ Tidak ada QR code di gambar');
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+// ==================== CHAT FUNCTIONS ====================
+function openChat(phone, name) {
+  currentChat = { phone, name };
+  document.getElementById('chatName').textContent = name;
+  const avatar = document.getElementById('chatAvatarSmall');
+  avatar.textContent = name.charAt(0).toUpperCase();
+  avatar.style.background = AVATAR_COLORS[contacts.findIndex(c => c.phone === phone) % AVATAR_COLORS.length] || '#25D366';
+  updateChatStatus();
+  renderMessages();
+  showScreen('chatScreen');
+  document.getElementById('messageInput').value = '';
+  toggleSendButton();
+  setTimeout(() => document.getElementById('messageInput').focus(), 300);
+}
+
+function renderMessages() {
+  const list = document.getElementById('messageList');
+  const msgs = messages[currentChat?.phone] || [];
+  if (msgs.length === 0) {
+    list.innerHTML = `<div class="system-msg">🔒 Belum ada pesan</div><div class="system-msg">💡 Kirim pesan, gambar, suara, atau file</div>`;
+    return;
+  }
+
+  list.innerHTML = msgs.map((m, i) => {
+    let content = '';
+    if (m.type === 'image') content = `<img src="${m.text}" class="msg-image" onclick="previewImage('${m.text}')" loading="lazy">`;
+    else if (m.type === 'audio') content = `<div class="msg-audio"><audio controls src="${m.text}"></audio></div>`;
+    else if (m.type === 'file') content = `<div class="msg-file"><span class="file-icon">📄</span><span class="file-name">${m.fileName || 'File'}</span></div>`;
+    else content = m.text;
+
+    const isRead = m.fromMe && m.read;
+    return `
+      <div class="msg-wrapper ${m.fromMe ? 'sent' : 'received'}">
+        <div class="msg-bubble">
+          ${content}
+          <div class="msg-time">${m.time} ${m.fromMe ? `<span class="msg-check ${isRead ? 'read' : ''}">${isRead ? '✓✓' : '✓'}</span>` : ''}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  setTimeout(() => { list.scrollTop = list.scrollHeight; }, 100);
+  markAsRead();
+}
+
+function markAsRead() {
+  if (!currentChat) return;
+  const msgs = messages[currentChat.phone] || [];
+  let changed = false;
+  msgs.forEach(m => { if (!m.fromMe && !m.read) { m.read = true; changed = true; } });
+  if (changed) {
+    DB.set('messages', messages);
+    if (dataChannel && dataChannel.readyState === 'open') {
+      dataChannel.send(JSON.stringify({ type: 'read', phone: myPhone }));
+    }
+  }
+}
+
+function toggleSendButton() {
+  const input = document.getElementById('messageInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const btnRecord = document.getElementById('btnRecord');
+  if (input.value.trim() && isConnected) {
+    sendBtn.classList.add('active'); sendBtn.disabled = false;
+    btnRecord.classList.remove('recording');
+  } else if (input.value.trim() && !isConnected) {
+    sendBtn.classList.remove('active'); sendBtn.disabled = true;
+    btnRecord.classList.remove('recording');
+  } else {
+    sendBtn.classList.remove('active'); sendBtn.disabled = true;
+    btnRecord.classList.add('recording');
+  }
+}
+
+function sendMsg() {
+  const input = document.getElementById('messageInput');
+  const text = input.value.trim();
+  if (!text || !currentChat || !isConnected) return;
+
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  if (!messages[currentChat.phone]) messages[currentChat.phone] = [];
+  const msg = { text, type: 'text', fromMe: true, time, read: false };
+  messages[currentChat.phone].push(msg);
+  DB.set('messages', messages);
+
+  if (dataChannel && dataChannel.readyState === 'open') {
+    const encrypted = encrypt(JSON.stringify({ type: 'msg', data: msg, sender: myPhone }));
+    dataChannel.send(encrypted);
+  }
+
+  input.value = ''; toggleSendButton(); renderMessages(); playSendSound();
+}
+
+// ==================== ATTACHMENTS ====================
+function showAttachmentMenu() { document.getElementById('attachmentModal').classList.add('active'); }
+function sendImage() { document.getElementById('imageInput').click(); closeModal('attachmentModal'); }
+function sendFile() { document.getElementById('fileInput').click(); closeModal('attachmentModal'); }
+
+function handleImageSend(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+    if (!messages[currentChat.phone]) messages[currentChat.phone] = [];
+    const msg = { text: e.target.result, type: 'image', fromMe: true, time, read: false };
+    messages[currentChat.phone].push(msg);
+    DB.set('messages', messages);
+    if (dataChannel && dataChannel.readyState === 'open') {
+      sendLargeData(encrypt(JSON.stringify({ type: 'msg', data: msg, sender: myPhone })));
+    }
+    renderMessages();
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function handleFileSend(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+    if (!messages[currentChat.phone]) messages[currentChat.phone] = [];
+    const msg = { text: e.target.result, type: 'file', fileName: file.name, fromMe: true, time, read: false };
+    messages[currentChat.phone].push(msg);
+    DB.set('messages', messages);
+    if (dataChannel && dataChannel.readyState === 'open') {
+      sendLargeData(encrypt(JSON.stringify({ type: 'msg', data: msg, sender: myPhone })));
+    }
+    renderMessages();
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function sendLargeData(data) {
+  const chunkSize = 16000;
+  const chunks = Math.ceil(data.length / chunkSize);
+  const id = Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+  for (let i = 0; i < chunks; i++) {
+    const chunk = JSON.stringify({ 
+      type: 'chunk', 
+      id: id, 
+      index: i, 
+      total: chunks, 
+      data: data.slice(i * chunkSize, (i + 1) * chunkSize) 
+    });
+    if (dataChannel && dataChannel.readyState === 'open') {
+      dataChannel.send(chunk);
+    }
+  }
+}
+
+let chunkBuffer = {};
+function handleChunk(chunk) {
+  if (!chunkBuffer[chunk.id]) chunkBuffer[chunk.id] = [];
+  chunkBuffer[chunk.id][chunk.index] = chunk.data;
+  const total = chunk.total;
+  const current = chunkBuffer[chunk.id].filter(Boolean).length;
+  if (current === total) {
+    const fullData = chunkBuffer[chunk.id].join('');
+    delete chunkBuffer[chunk.id];
+    processIncomingMessage(fullData);
+  }
+}
+
+function processIncomingMessage(rawData) {
+  try {
+    let data;
+    try { data = JSON.parse(rawData); } catch { data = JSON.parse(decrypt(rawData)); }
+    
+    if (data.type === 'signal') {
+      toast('📡 Sinyal dari ' + (data.sender || 'peer'));
+      if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'signal', message: 'Pong from ' + myPhone }));
+      }
+      return;
+    }
+    
+    if (data.type === 'msg') {
+      const msg = data.data;
+      const sender = data.sender || 'Unknown';
+      
+      // Find contact by phone
+      let contact = contacts.find(c => c.phone === sender);
+      let chatPhone = sender;
+      
+      if (!contact) {
+        // Auto-add contact if not exists
+        const name = 'User-' + sender.slice(-4);
+        contacts.push({ name, phone: sender });
+        DB.set('contacts', contacts);
+        contact = { name, phone: sender };
+      }
+      
+      if (!messages[chatPhone]) messages[chatPhone] = [];
+      const newMsg = { 
+        text: msg.text, 
+        type: msg.type || 'text', 
+        fileName: msg.fileName, 
+        fromMe: false, 
+        time: msg.time || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), 
+        read: true 
+      };
+      messages[chatPhone].push(newMsg);
+      DB.set('messages', messages);
+      
+      if (currentChat?.phone === chatPhone) { 
+        renderMessages(); 
+      }
+      
+      renderContacts();
+      if (!mutedChats.includes(chatPhone)) { 
+        playReceiveSound(); 
+        toast('📩 Pesan dari ' + contact.name);
+      }
+    }
+  } catch(e) { 
+    console.error('Process error:', e); 
+  }
+}
+
+// ==================== VOICE RECORDING ====================
+async function startRecording() {
+  if (!currentChat || !isConnected) {
+    toast('⚠️ Belum terhubung ke chat');
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = []; isRecording = true;
+    document.getElementById('btnRecord').style.background = '#DC2626';
+    toast('🎤 Merekam...');
+    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const now = new Date();
+        const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+        if (!messages[currentChat.phone]) messages[currentChat.phone] = [];
+        const msg = { text: e.target.result, type: 'audio', fromMe: true, time, read: false };
+        messages[currentChat.phone].push(msg);
+        DB.set('messages', messages);
+        if (dataChannel && dataChannel.readyState === 'open') {
+          sendLargeData(encrypt(JSON.stringify({ type: 'msg', data: msg, sender: myPhone })));
+        }
+        renderMessages();
+        toast('🎵 Voice note terkirim');
+      };
+      reader.readAsDataURL(audioBlob);
+      stream.getTracks().forEach(t => t.stop());
+      isRecording = false;
+      document.getElementById('btnRecord').style.background = '#EF4444';
+    };
+    mediaRecorder.start();
+  } catch(e) { 
+    toast('❌ Tidak bisa akses mikrofon'); 
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && isRecording) { 
+    mediaRecorder.stop(); 
+  }
+}
+
+// ==================== CHAT FEATURES ====================
+function pinChat() {
+  if (!currentChat) return;
+  const phone = currentChat.phone;
+  if (pinnedChats.includes(phone)) { pinnedChats = pinnedChats.filter(p => p !== phone); toast('📌 Unpinned'); }
+  else { pinnedChats.unshift(phone); toast('📌 Pinned!'); }
+  DB.set('pinnedChats', pinnedChats); closeModal('chatMenuModal'); renderContacts();
+}
+
+function muteChat() {
+  if (!currentChat) return;
+  const phone = currentChat.phone;
+  if (mutedChats.includes(phone)) { mutedChats = mutedChats.filter(m => m !== phone); toast('🔔 Unmuted'); }
+  else { mutedChats.push(phone); toast('🔇 Muted'); }
+  DB.set('mutedChats', mutedChats); closeModal('chatMenuModal'); renderContacts();
+}
+
+function clearChat() {
+  if (!currentChat) return;
+  if (!confirm('Hapus semua pesan di chat ini?')) return;
+  messages[currentChat.phone] = [];
+  DB.set('messages', messages); closeModal('chatMenuModal'); renderMessages();
+  toast('🗑️ Chat dihapus');
+}
+
+function exportChat() {
+  if (!currentChat) return;
+  const msgs = messages[currentChat.phone] || [];
+  let text = `Chat dengan ${currentChat.name} (${currentChat.phone})\nDiekspor: ${new Date().toLocaleString()}\n\n`;
+  msgs.forEach(m => { text += `[${m.time}] ${m.fromMe ? 'Anda' : currentChat.name}: ${m.text}\n`; });
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `chat-${currentChat.name}.txt`;
+  a.click(); URL.revokeObjectURL(url);
+  closeModal('chatMenuModal'); closeModal('contactInfoModal');
+  toast('💾 Chat diekspor');
+}
+
+function showContactInfo() {
+  if (!currentChat) return;
+  document.getElementById('infoAvatar').textContent = currentChat.name.charAt(0).toUpperCase();
+  document.getElementById('infoName').textContent = currentChat.name;
+  document.getElementById('infoPhone').textContent = currentChat.phone;
+  document.getElementById('infoStatus').textContent = isConnected ? '🟢 Online' : '⚪ Offline';
+  document.getElementById('contactInfoModal').classList.add('active');
+}
+
+function showChatMenu() {
+  if (!currentChat) return;
+  document.getElementById('pinBtn').textContent = pinnedChats.includes(currentChat.phone) ? '📌 Unpin Chat' : '📌 Pin Chat';
+  document.getElementById('muteBtn').textContent = mutedChats.includes(currentChat.phone) ? '🔔 Unmute Chat' : '🔇 Mute Chat';
+  document.getElementById('chatMenuModal').classList.add('active');
+}
+
+function previewImage(src) {
+  document.getElementById('previewImage').src = src;
+  document.getElementById('imagePreview').classList.add('active');
+}
+
+function goBackToContacts() { 
+  currentChat = null; 
+  showScreen('contactsScreen'); 
+  renderContacts(); 
+}
+
+// ==================== SOUNDS ====================
+function playSendSound() {
+  try { 
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+    const osc = ctx.createOscillator(); 
+    const gain = ctx.createGain(); 
+    osc.connect(gain); 
+    gain.connect(ctx.destination); 
+    osc.frequency.value = 800; 
+    gain.gain.value = 0.1; 
+    osc.start(); 
+    osc.stop(ctx.currentTime + 0.1); 
+  } catch(e) {}
+}
+
+function playReceiveSound() {
+  try { 
+    const ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+    [600, 800].forEach((freq, i) => { 
+      const osc = ctx.createOscillator(); 
+      const gain = ctx.createGain(); 
+      osc.connect(gain); 
+      gain.connect(ctx.destination); 
+      osc.frequency.value = freq; 
+      gain.gain.value = 0.1; 
+      osc.start(ctx.currentTime + i * 0.15); 
+      osc.stop(ctx.currentTime + i * 0.15 + 0.1); 
+    }); 
+  } catch(e) {}
+}
+
+// ==================== UTILS ====================
+function closeModal(id) { 
+  const modal = document.getElementById(id);
+  if (modal) modal.classList.remove('active'); 
+}
+
+function toast(msg) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const el = document.createElement('div'); 
+  el.className = 'toast'; 
+  el.textContent = msg;
+  container.appendChild(el); 
+  setTimeout(() => { if (el.parentNode) el.remove(); }, 2200);
+}
+
+// Modal close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', function(e) { 
+    if (e.target === this) { 
+      this.classList.remove('active'); 
+      stopScanner(); 
+    } 
+  });
+});
+
+// Init connection when modal opens
+document.getElementById('connectModal').addEventListener('transitionend', function() {
+  if (this.classList.contains('active') && !peerConnection) {
+    createConnection();
+  }
+});
+
+// ==================== AUTO-CONNECT ON PAGE LOAD ====================
+// Init connection if user is logged in
+if (myPhone) {
+  setTimeout(() => {
+    if (!peerConnection) {
+      createConnection();
+    }
+  }, 1000);
+}
+</script>
+</body>
+</html>
